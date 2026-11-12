@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diagnóstico de Relacionamento</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='112' fill='%234f46e5'/%3E%3Ccircle cx='256' cy='256' r='170' fill='none' stroke='%23fff' stroke-opacity='.12' stroke-width='30'/%3E%3Cg fill='none' stroke-width='30' stroke-linecap='round' stroke-dasharray='310 1068' transform='rotate(-60 256 256)'%3E%3Ccircle cx='256' cy='256' r='170' stroke='%23fb7185'/%3E%3Ccircle cx='256' cy='256' r='170' stroke='%23fbbf24' transform='rotate(120 256 256)'/%3E%3Ccircle cx='256' cy='256' r='170' stroke='%2334d399' transform='rotate(240 256 256)'/%3E%3C/g%3E%3Cpath d='M256 344C188 295 156 263 156 221c0-31 23-52 51-52 21 0 39 11 49 29 10-18 28-29 49-29 28 0 51 21 51 52 0 42-32 74-100 123z' fill='%23fff'/%3E%3C/svg%3E">
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.460.0/dist/umd/lucide.min.js"></script>
+<style>
+  body{font-family:Georgia,'Times New Roman',serif}
+  .ui{font-family:system-ui,-apple-system,'Segoe UI',sans-serif}
+  .opt input:checked + div{border-color:#4f46e5;background:#eef2ff;box-shadow:0 0 0 1px #4f46e5}
+  .opt input:focus-visible + div{outline:2px solid #4f46e5;outline-offset:2px}
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+<!-- Barra de progresso fixa -->
+<div id="bar" class="hidden ui fixed top-0 inset-x-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200">
+  <div class="max-w-2xl mx-auto px-4 py-3">
+    <div class="flex justify-between text-sm font-medium text-slate-600 mb-2">
+      <span id="barLabel"></span><span id="barPct"></span>
+    </div>
+    <div class="h-2 bg-slate-200 rounded-full overflow-hidden">
+      <div id="barFill" class="h-full bg-indigo-600 transition-all duration-300" style="width:0%"></div>
+    </div>
+  </div>
+</div>
+
+<main class="max-w-2xl mx-auto px-4 py-10" id="app"></main>
+
+<script>
+/* ---------- Banco de perguntas: [tópico, enunciado, [3 pts], [1 pt], [0 pts]] ---------- */
+const Q = [
+ // Rodada 1 (cobre todos os tópicos)
+ ["Resolução de conflitos","Quando vocês discordam de algo importante, o que costuma acontecer?","Conversamos com calma, ouvimos um ao outro e chegamos a um acordo.","Discutimos alto e depois deixamos o assunto morrer sem resolver.","Há gritos, ofensas ou silêncio prolongado, e o problema volta sempre."],
+ ["Dormir na mesma cama","Como é a vida de vocês na hora de dormir?","Dormimos juntos quase sempre e gostamos desse momento de proximidade.","Dormimos juntos, mas de costas ou cada um no celular.","Dormimos em camas ou quartos separados, ou evitamos ir para a cama juntos."],
+ ["Divisão de tarefas","Como as tarefas da casa e dos filhos (ou da rotina) são divididas?","A divisão é justa, combinada e nenhum dos dois se sente sobrecarregado.","Um faz bem mais que o outro, e isso já gerou reclamação.","Um carrega quase tudo, sem reconhecimento, e o ressentimento é constante."],
+ ["Finanças","Como vocês lidam com dinheiro e decisões de gastos?","Falamos abertamente, temos metas e decidimos juntos.","Cada um cuida do seu, e conversar sobre dinheiro gera tensão.","Escondemos gastos ou dívidas, ou o dinheiro é motivo de brigas graves."],
+ ["Intimidade","Como está a intimidade física e o carinho entre vocês?","Temos carinho e intimidade frequentes, e ambos se sentem desejados.","Ficou rara e rotineira, e quase nunca conversamos sobre isso.","Praticamente inexistente, ou há rejeição e desconforto."],
+ ["Projetos futuros","Como vocês enxergam o futuro?","Temos planos em comum e nos empolgamos em construí-los juntos.","Temos planos vagos e nem sempre alinhados.","Queremos caminhos diferentes ou nem imaginamos o futuro juntos."],
+ ["Tecnologia","Como o celular e as redes sociais aparecem na relação?","Usamos com equilíbrio: há tempo sem telas e confiança total.","O celular rouba nossos momentos juntos com frequência.","Há ciúme, vigilância, segredos ou mensagens escondidas."],
+ ["Família e amigos","Como é a convivência com a família e os amigos um do outro?","Nos damos bem com os dois lados e o casal vem em primeiro lugar.","Há atritos pontuais, e um dos dois evita certos encontros.","Há conflitos constantes, e o parceiro não me defende ou me isola."],
+ ["Apoio em crises","Quando um de vocês passa por um momento difícil (perda, doença, desemprego), o que acontece?","O outro está presente, acolhe e ajuda de forma concreta.","Ajuda, mas com má vontade ou de forma distante.","Sinto-me sozinho(a), ignorado(a) ou julgado(a) nesses momentos."],
+ ["Hobbies e tempo juntos","Vocês têm atividades prazerosas em comum?","Temos hobbies em comum e também respeitamos os individuais.","Quase não fazemos nada juntos além da rotina.","Não temos nada em comum ou um critica os interesses do outro."],
+ // Rodada 2
+ ["Cumplicidade","Vocês dividem sonhos, medos e pensamentos íntimos?","Sim, sinto que posso ser eu mesmo(a) e somos melhores amigos.","Às vezes, mas escolho o que contar para evitar problemas.","Quase nunca. Sinto que vivo ao lado de um(a) estranho(a)."],
+ ["Resolução de conflitos","Depois de uma briga, como vocês fazem as pazes?","Pedimos desculpas de verdade e voltamos a nos conectar.","Fingimos que nada aconteceu e seguimos.","Ficamos dias sem falar ou um dos dois sempre cede para evitar o pior."],
+ ["Dormir na mesma cama","Se um de vocês dorme mal ou tem rotina diferente, o que acontece?","Conversamos e encontramos soluções sem nos afastar.","Um vai dormir em outro lugar de vez em quando, sem muita conversa.","O afastamento na hora de dormir virou regra e ninguém quer mudar."],
+ ["Divisão de tarefas","Quando um de vocês está sobrecarregado, o outro percebe?","Sim, ele(a) assume mais sem eu precisar pedir.","Só percebe quando eu reclamo.","Nem quando eu peço ajuda é atendido(a)."],
+ ["Finanças","Como são as decisões sobre grandes compras ou investimentos?","Planejamos e decidimos de comum acordo.","Um decide e o outro é apenas informado.","Um decide sozinho, mesmo contra a vontade do outro."],
+ ["Intimidade","Vocês conseguem conversar sobre desejos e insatisfações sexuais?","Sim, com leveza e respeito.","É um assunto embaraçoso que evitamos.","Qualquer tentativa vira briga, culpa ou desprezo."],
+ ["Projetos futuros","Quando um de vocês quer mudar de carreira ou cidade, como o outro reage?","Apoia e discutimos como adaptar a vida a isso.","Reage com receio, mas conversa.","Boicota, ridiculariza ou ignora o sonho do outro."],
+ ["Tecnologia","Vocês confiam um no outro nas redes sociais e conversas online?","Confiança total, sem necessidade de checar nada.","Há um certo incômodo, mas não falamos disso.","Já houve invasão de privacidade, controle ou traição digital."],
+ ["Família e amigos","Quando há decisões que envolvem parentes (feriados, ajuda, opiniões), como decidem?","Como equipe, respeitando os limites de ambos.","Cedemos a um lado para evitar briga.","A família interfere muito e sofremos por isso."],
+ ["Apoio em crises","Em uma crise grave, vocês conseguem buscar ajuda externa (médico, terapia, amigos)?","Sim, sem vergonha e juntos.","Só quando a situação já está muito ruim.","Um se recusa a pedir ajuda e a crise vira culpa."],
+ // Rodada 3
+ ["Cumplicidade","Vocês riem juntos?","Com frequência. O humor é parte do nosso vínculo.","De vez em quando, mais por hábito.","Quase nunca. Predomina a tensão ou o tédio."],
+ ["Hobbies e tempo juntos","Quando foi a última vez que saíram para algo só de vocês dois?","Fazemos isso com regularidade.","Foi há muitos meses.","Não me lembro ou nem faz sentido para nós."],
+ ["Resolução de conflitos","Ofensas, ironias e desprezo aparecem nas discussões?","Quase nunca. Mantemos respeito mesmo com raiva.","Às vezes, e depois nos arrependemos.","Com frequência, e já houve humilhação ou ameaça."],
+ ["Divisão de tarefas","A carga mental (lembrar compromissos, compras, datas) é compartilhada?","Sim, ambos pensamos e organizamos.","Quase tudo recai sobre um só.","Um decide tudo e o outro só critica."],
+ ["Finanças","Existe transparência sobre dívidas, salários e gastos?","Total transparência, com conversas periódicas.","Compartilhamos o básico, mas há omissões.","Há segredos financeiros ou controle excessivo."],
+ ["Intimidade","Vocês demonstram afeto no dia a dia (abraço, elogio, olhar)?","Sim, todos os dias.","Só em ocasiões especiais.","Quase nunca ou o afeto virou cobrança."],
+ ["Projetos futuros","Como vocês se imaginam daqui a dez anos?","Juntos, felizes e com planos concretos.","Juntos, mas sem muito entusiasmo.","Separados, ou prefiro nem pensar."],
+ ["Dormir na mesma cama","Vocês têm algum ritual a dois antes de dormir (conversar, abraçar, agradecer)?","Sim, e é um momento que valorizamos.","Raramente, só quando dá tempo.","Não, e muitas vezes vamos dormir irritados."],
+ ["Família e amigos","Seu parceiro(a) respeita e valoriza seus amigos e sua família?","Sim, com cordialidade e interesse.","Tolera, mas com reclamações.","Desvaloriza, afasta ou proíbe o contato."],
+ ["Apoio em crises","Você se sente seguro(a) para contar com seu parceiro(a) no pior dia da sua vida?","Totalmente. É a primeira pessoa que eu chamaria.","Teria dúvidas sobre como ele(a) reagiria.","Não. Prefiro enfrentar sozinho(a)."]
+];
+const MODES = [
+  {n:10,t:"Reflexão Express",d:"Um retrato rápido dos pontos essenciais.",i:"zap"},
+  {n:20,t:"Análise Aprofundada",d:"Mais detalhes sobre cada área da relação.",i:"search"},
+  {n:30,t:"Diagnóstico Completo",d:"A visão mais ampla e equilibrada.",i:"layers"}
+];
+
+/* ---------- Estado ---------- */
+let st = {total:0, qs:[], ans:[], cur:0};
+const $ = id => document.getElementById(id);
+const app = $("app"), bar = $("bar");
+const icons = () => lucide.createIcons();
+const shuffle = a => { a = a.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]} return a; };
+const esc = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;");
+
+/* ---------- Tela inicial ---------- */
+function home(){
+  bar.classList.add("hidden");
+  app.innerHTML = `
+  <div class="ui text-center mb-10">
+    <div class="inline-flex w-14 h-14 rounded-2xl bg-indigo-600 text-white items-center justify-center mb-5"><i data-lucide="heart-handshake" class="w-7 h-7"></i></div>
+    <h1 class="text-3xl sm:text-4xl font-bold text-slate-900 mb-3" style="font-family:Georgia,serif">Como está a sua relação?</h1>
+    <p class="text-slate-600 max-w-md mx-auto">Responda com sinceridade, pensando no dia a dia recente. Escolha quantas perguntas quer responder.</p>
+  </div>
+  <div class="ui grid gap-4">
+    ${MODES.map(m=>`
+    <button data-n="${m.n}" class="mode text-left bg-white border border-slate-200 rounded-2xl p-5 hover:border-indigo-500 hover:shadow-md transition flex items-center gap-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+      <span class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0"><i data-lucide="${m.i}" class="w-6 h-6"></i></span>
+      <span class="flex-1"><span class="block font-semibold text-slate-900">${m.n} perguntas: ${m.t}</span><span class="block text-sm text-slate-500">${m.d}</span></span>
+      <i data-lucide="chevron-right" class="w-5 h-5 text-slate-400"></i>
+    </button>`).join("")}
+  </div>
+  <p class="ui text-xs text-slate-500 text-center mt-8 max-w-md mx-auto">Esta ferramenta serve para reflexão e não substitui a avaliação de um psicólogo ou terapeuta de casal.</p>`;
+  document.querySelectorAll(".mode").forEach(b=>b.onclick=()=>start(+b.dataset.n));
+  icons(); window.scrollTo(0,0);
+}
+
+function start(n){
+  st.total = n;
+  st.qs = Q.slice(0,n).map(q=>({
+    topic:q[0], text:q[1],
+    opts: shuffle([{t:q[2],p:3},{t:q[3],p:1},{t:q[4],p:0}])
+  }));
+  st.ans = Array(n).fill(null);
+  st.cur = 0;
+  bar.classList.remove("hidden");
+  question();
+}
+
+/* ---------- Questionário ---------- */
+function updateBar(){
+  const pct = Math.round((st.cur+1)/st.total*100);
+  $("barLabel").textContent = `Pergunta ${st.cur+1} de ${st.total}`;
+  $("barPct").textContent = pct+"%";
+  $("barFill").style.width = pct+"%";
+}
+
+function question(msg){
+  const q = st.qs[st.cur], last = st.cur===st.total-1;
+  const answered = st.ans.filter(a=>a!==null).length;
+  updateBar();
+  app.innerHTML = `
+  <div class="ui pt-16">
+    <div class="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-sm">
+      <p class="text-sm font-medium text-indigo-600 mb-2">${esc(q.topic)}</p>
+      <h2 class="text-xl sm:text-2xl font-semibold text-slate-900 mb-6 leading-snug" style="font-family:Georgia,serif">${esc(q.text)}</h2>
+      <div class="space-y-3" role="radiogroup">
+        ${q.opts.map((o,i)=>`
+        <label class="opt block cursor-pointer">
+          <input type="radio" name="q" value="${i}" class="sr-only" ${st.ans[st.cur]===i?"checked":""}>
+          <div class="border border-slate-200 rounded-xl p-4 flex gap-3 items-start hover:border-indigo-300 transition">
+            <span class="mt-0.5 w-5 h-5 rounded-full border-2 border-slate-300 shrink-0"></span>
+            <span class="text-slate-700">${esc(o.t)}</span>
+          </div>
+        </label>`).join("")}
+      </div>
+      ${msg?`<p class="mt-4 text-sm text-rose-600 flex items-center gap-2"><i data-lucide="alert-circle" class="w-4 h-4"></i>${msg}</p>`:""}
+    </div>
+    <div class="flex items-center justify-between mt-6 gap-3">
+      <button id="prev" class="px-4 py-2.5 rounded-xl text-slate-600 hover:bg-slate-200 disabled:opacity-30 disabled:hover:bg-transparent flex items-center gap-2" ${st.cur===0?"disabled":""}><i data-lucide="arrow-left" class="w-4 h-4"></i>Anterior</button>
+      <span class="text-xs text-slate-500">${answered} de ${st.total} respondidas</span>
+      ${last
+        ? `<button id="finish" class="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-medium hover:bg-emerald-700 flex items-center gap-2"><i data-lucide="check" class="w-4 h-4"></i>Ver veredito</button>`
+        : `<button id="next" class="px-5 py-2.5 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 flex items-center gap-2">Próxima<i data-lucide="arrow-right" class="w-4 h-4"></i></button>`}
+    </div>
+  </div>`;
+  document.querySelectorAll('input[name=q]').forEach(r=>r.onchange=()=>{
+    st.ans[st.cur]=+r.value;
+    document.querySelectorAll(".opt span.rounded-full").forEach(s=>s.style.cssText="");
+    mark();
+  });
+  mark();
+  $("prev").onclick=()=>{st.cur--;question()};
+  if($("next")) $("next").onclick=()=>{
+    if(st.ans[st.cur]===null) return question("Escolha uma opção para continuar.");
+    st.cur++; question();
+  };
+  if($("finish")) $("finish").onclick=()=>{
+    const miss = st.ans.findIndex(a=>a===null);
+    if(miss!==-1){ st.cur=miss; return question(`Responda todas as perguntas para ver o veredito. Falta a pergunta ${miss+1}.`); }
+    result();
+  };
+  icons(); window.scrollTo(0,0);
+}
+function mark(){
+  document.querySelectorAll(".opt").forEach(l=>{
+    const on = l.querySelector("input").checked, dot = l.querySelector("span.rounded-full");
+    dot.style.borderColor = on?"#4f46e5":""; dot.style.background = on?"radial-gradient(#4f46e5 45%,#fff 50%)":"";
+  });
+}
+
+/* ---------- Resultado ---------- */
+function result(){
+  bar.classList.add("hidden");
+  const pts = {3:0,1:0,0:0}; let score=0;
+  st.ans.forEach((a,i)=>{const p=st.qs[i].opts[a].p; pts[p]++; score+=p;});
+  const max = st.total*3, pct = Math.round(score/max*100);
+  let v;
+  if(pct>=70) v = {c:"emerald",icon:"heart",title:"VEREDITO: CONTINUAR CASADOS.",
+    text:"Sua relação tem uma base sólida: há respeito, conexão e capacidade de resolver problemas juntos. Isso não significa ausência de dificuldades, e sim que vocês têm recursos para atravessá-las.",
+    recs:["Mantenham o hábito de conversar sobre o que sentem, mesmo quando está tudo bem.","Reservem tempo regular só para vocês dois.","Trabalhem os pontos marcados como alerta antes que virem desgaste."]};
+  else if(pct>=35) v = {c:"amber",icon:"triangle-alert",title:"VEREDITO: ZONA DE RISCO / URGÊNCIA DE TERAPIA.",
+    text:"Há desgastes importantes na convivência. Ainda existem pontos de conexão, mas os padrões atuais podem se agravar se nada mudar. Este é o momento de agir, não de esperar.",
+    recs:["Procurem um terapeuta de casal para mediar as conversas difíceis.","Escolham um ou dois problemas prioritários e trabalhem neles juntos.","Revejam a divisão de tarefas, a comunicação e o tempo de qualidade."]};
+  else v = {c:"rose",icon:"heart-crack",title:"VEREDITO: DIVORCIAR / SEPARAR.",
+    text:"As respostas indicam um esgotamento profundo: faltam afeto, respeito e segurança na relação. Quando o desgaste chega a esse ponto, insistir sem mudança real tende a machucar os dois lados.",
+    recs:["Se a separação for o caminho, façam-na com respeito, de forma planejada e responsável.","Busquem apoio psicológico individual para atravessar a transição.","Se houver violência ou ameaça, procure ajuda imediata (Ligue 180 ou 190 no Brasil)."]};
+  const col = {emerald:["bg-emerald-50","border-emerald-300","text-emerald-800","bg-emerald-600"],amber:["bg-amber-50","border-amber-300","text-amber-800","bg-amber-500"],rose:["bg-rose-50","border-rose-300","text-rose-800","bg-rose-600"]}[v.c];
+  const metric=(n,l,ic,cls)=>`<div class="bg-white border border-slate-200 rounded-2xl p-5 text-center"><i data-lucide="${ic}" class="w-6 h-6 mx-auto mb-2 ${cls}"></i><div class="text-3xl font-bold text-slate-900">${n}</div><div class="text-sm text-slate-500">${l}</div></div>`;
+  app.innerHTML = `
+  <div class="ui">
+    <div class="${col[0]} ${col[1]} border-2 rounded-3xl p-6 sm:p-8 mb-6">
+      <div class="flex items-center gap-3 mb-4">
+        <span class="w-12 h-12 rounded-xl ${col[3]} text-white flex items-center justify-center shrink-0"><i data-lucide="${v.icon}" class="w-6 h-6"></i></span>
+        <h2 class="text-xl sm:text-2xl font-extrabold ${col[2]} leading-tight">${v.title}</h2>
+      </div>
+      <p class="text-slate-700 mb-4">${v.text}</p>
+      <ul class="space-y-2 text-slate-700">${v.recs.map(r=>`<li class="flex gap-2"><i data-lucide="chevron-right" class="w-4 h-4 mt-1 shrink-0 ${col[2]}"></i><span>${r}</span></li>`).join("")}</ul>
+    </div>
+    <div class="bg-white border border-slate-200 rounded-2xl p-5 mb-6">
+      <div class="flex justify-between text-sm font-medium text-slate-600 mb-2"><span>Pontuação: ${score} de ${max}</span><span>${pct}%</span></div>
+      <div class="h-3 bg-slate-200 rounded-full overflow-hidden"><div class="h-full ${col[3]}" style="width:${pct}%"></div></div>
+      <div class="flex justify-between text-xs text-slate-400 mt-1"><span>0%</span><span>35%</span><span>70%</span><span>100%</span></div>
+    </div>
+    <div class="grid grid-cols-3 gap-3 sm:gap-4 mb-8">
+      ${metric(pts[3],"Positivas (3 pts)","smile","text-emerald-600")}
+      ${metric(pts[1],"Alertas (1 pt)","meh","text-amber-500")}
+      ${metric(pts[0],"Críticas (0 pts)","frown","text-rose-600")}
+    </div>
+    <div class="flex flex-col sm:flex-row gap-3 justify-center">
+      <button id="again" class="px-5 py-3 rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 flex items-center justify-center gap-2"><i data-lucide="rotate-ccw" class="w-4 h-4"></i>Refazer o teste</button>
+      <button id="change" class="px-5 py-3 rounded-xl bg-white border border-slate-300 text-slate-700 font-medium hover:bg-slate-100 flex items-center justify-center gap-2"><i data-lucide="sliders-horizontal" class="w-4 h-4"></i>Trocar de modo</button>
+    </div>
+    <p class="text-xs text-slate-500 text-center mt-8 max-w-md mx-auto">Este resultado é um ponto de partida para reflexão. Decisões sobre o casamento merecem conversa honesta entre vocês e, se possível, apoio profissional.</p>
+  </div>`;
+  $("again").onclick=()=>start(st.total);
+  $("change").onclick=home;
+  icons(); window.scrollTo(0,0);
+}
+
+home();
+</script>
+</body>
+</html>
